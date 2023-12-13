@@ -5,6 +5,20 @@ import chardet
 import plotly.express as px
 from ultralytics import YOLO
 import pandas as pd
+import easyocr
+from vietocr.tool.predictor import Predictor
+from vietocr.tool.config import Cfg
+
+config = Cfg.load_config_from_name('vgg_transformer')
+config['cnn']['pretrained']=False
+config['device'] = 'cpu'
+
+detector = Predictor(config)
+
+def tensor_to_numpy(tensor):
+    return tensor.cpu().detach().numpy()
+
+reader = easyocr.Reader(['vi'])
 
 # Model path
 model_path = 'Weight/best1.pt'
@@ -61,16 +75,40 @@ def main():
         # Creating two columns on the main page
         col1, col2 = st.columns(2)
 
+        ocr_results = []
+
         with col1:
             if uploaded_image:
                 img = Image.open(uploaded_image)
                 st.image(img, caption="Uploaded Image.", use_column_width=True)
 
+                #Lấy box -> model
                 if model and st.button("Detect Object"):
                     results = model.predict(img, conf=confidence)
+                    names = results[0].names
                     boxes = results[0].boxes
-                    # Update the value of res_plotted
+                    classes = results[0].boxes.cls
+                    # Update the value of res_plotted 
                     res_plotted = results[0].plot()[:, :, ::-1]
+
+                    cropped_images = []
+                    for bbox, cls in zip(boxes, classes):
+                        bounding_box = tensor_to_numpy(bbox.xyxy)
+                        x1, y1, x2, y2 = bounding_box[0]
+                        # Crop the image to the bounding box, note that numpy uses y first
+                        cropped_img = results[0].orig_img[int(y1):int(y2), int(x1):int(x2)]
+                        cropped_images.append((cropped_img, cls))
+
+                    for i in range(len(cropped_images)):
+                        result = reader.readtext(cropped_images[i][0], add_margin=0.15)
+                        for bound in result:
+                            bbox = bound[0]
+                            # Crop the image to the bounding box
+                            x_min, y_min = [int(min(pt[0] for pt in bbox)), int(min(pt[1] for pt in bbox))]# crop the image 
+                            x_max, y_max = [int(max(pt[0] for pt in bbox)), int(max(pt[1] for pt in bbox))]# crop the bounding boxes and turn them into images
+                            cropped_image = Image.fromarray(cropped_images[i][0][y_min:y_max, x_min:x_max])#
+                            s = detector.predict(cropped_image)
+                            ocr_results.append({names[int(cropped_images[i][1])] : s})
 
         # Creating two columns on the main page
         with col2:
@@ -78,8 +116,7 @@ def main():
                 st.image(res_plotted, caption='Detected Image', use_column_width=True)
                 try:
                     with st.expander("Detection Results"):
-                        for box in boxes:
-                            st.write(box.xywh)
+                        st.write(ocr_results)
                 except Exception as ex:
                     st.write("No image is uploaded yet!")
 
@@ -107,7 +144,7 @@ def main():
             ["Hàng tồn kho theo sản phẩm", "Hàng nhập kho theo thời gian"],
         )
 
-        # Chart based on the selected statistic
+        # Chart based on the selected statistic 
         st.subheader("Biểu đồ thống kê")
 
         if selected_stat == "Hàng tồn kho theo sản phẩm":
