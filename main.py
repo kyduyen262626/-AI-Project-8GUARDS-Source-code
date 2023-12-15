@@ -55,29 +55,27 @@ def load_yolo_model():
         return None
     
 def extract_info_based_on_class(names, ocr_results):
-    supplier_info = {"Tên nhà cung cấp": "", "Địa chỉ nhà cung cấp": ""}
-    customer_info = {"Người giao": "", "Địa chỉ kho": "", "Kho": ""}
-    invoice_info = {"Số hóa đơn": "", "Ngày nhập kho": ""}
+    supplier_info = {"Tên nhà cung cấp": [], "Địa chỉ nhà cung cấp": []}
+    customer_info = {"Người giao": [], "Địa chỉ kho": [], "Kho": []}
+    invoice_info = {"Số hóa đơn": [], "Ngày nhập kho": []}
     product_info = {"Sản phẩm": [], "Thực nhập": [], "Đơn giá": [], "Thành tiền": []}
-
-    max_length = max(len(product_info[key]) for key in product_info)
 
     for result in ocr_results:
         for name, text in result.items():
             if name == "nhacungcap":
-                supplier_info["Tên nhà cung cấp"] = text
+                supplier_info["Tên nhà cung cấp"].append(text)
             elif name == "diachicungcap":
-                supplier_info["Địa chỉ nhà cung cấp"] = text
+                supplier_info["Địa chỉ nhà cung cấp"].append(text)
             elif name == "nguoigiao":
-                customer_info["Người giao"] = text
+                customer_info["Người giao"].append(text)
             elif name == "diachikho":
-                customer_info["Địa chỉ kho"] = text
+                customer_info["Địa chỉ kho"].append(text)
             elif name == "kho":
-                customer_info["Kho"] = text
+                customer_info["Kho"].append(text)
             elif name == "sohoadon":
-                invoice_info["Số hóa đơn"] = text
+                invoice_info["Số hóa đơn"].append(text)
             elif name == "ngaynhapkho":
-                invoice_info["Ngày nhập kho"] = text
+                invoice_info["Ngày nhập kho"].append(text)
             elif name == "sanpham":
                 product_info["Sản phẩm"].append(text)
             elif name == "thucnhap":
@@ -86,8 +84,16 @@ def extract_info_based_on_class(names, ocr_results):
                 product_info["Đơn giá"].append(text)
             elif name == "thanhtien":
                 product_info["Thành tiền"].append(text)
+    supplier_info["Tên nhà cung cấp"] = " ".join(supplier_info["Tên nhà cung cấp"])
+    supplier_info["Địa chỉ nhà cung cấp"] = " ".join(supplier_info["Địa chỉ nhà cung cấp"])
+    customer_info["Người giao"] = " ".join(customer_info["Người giao"])
+    customer_info["Địa chỉ kho"] = " ".join(customer_info["Địa chỉ kho"])
+    customer_info["Kho"] = " ".join(customer_info["Kho"])
+    invoice_info["Số hóa đơn"] = " ".join(invoice_info["Số hóa đơn"])
+    invoice_info["Ngày nhập kho"] = " ".join(invoice_info["Ngày nhập kho"])
 
-    # Pad lists with empty strings to make them of equal length
+    max_length = max(len(product_info[key]) for key in product_info)
+    print ('max_length', max_length)
     for key in product_info:
         product_info[key] += [""] * (max_length - len(product_info[key]))
 
@@ -100,12 +106,9 @@ def main():
         selected = option_menu("Home", ["Invoice Detection", 'Dashboard'],
                                icons=['body-text', 'bar-chart-line'], menu_icon="house", default_index=1)
 
-    names = []  
-    ocr_results = []
-
     if selected == "Invoice Detection":
         st.title("📑OCR Invoice Detection")
-        uploaded_image = st.file_uploader("Upload an image", type=("jpg", "jpeg", "png", 'bmp', 'webp'))
+        uploaded_image = st.file_uploader("Upload an image", type=("jpg", "jpeg", "png", 'bmp', 'webp'), key="image")
 
         # Set up confidence
         confidence = float(st.slider("Select Model Confidence", 25, 100, 40)) / 100
@@ -151,7 +154,15 @@ def main():
                             s = detector.predict(cropped_image)
                             ocr_results.append({names[int(cropped_images[i][1])]: s})
 
-        # Creating two columns on the main page
+                    supplier_info, customer_info, invoice_info, product_info = extract_info_based_on_class(names, ocr_results)
+                    st.session_state.supplier_info = supplier_info
+                    st.session_state.customer_info = customer_info
+                    st.session_state.invoice_info = invoice_info
+                    st.session_state.product_info = product_info
+
+                    print (product_info)
+
+        # Creating two columns on the main page 
         with col2:
             if uploaded_image and 'res_plotted' in locals():
                 st.image(res_plotted, caption='Detected Image', use_column_width=True)
@@ -161,65 +172,57 @@ def main():
                 except Exception as ex:
                     st.write("No image is uploaded yet!")
 
-        # Extract information based on class names
-        supplier_info, customer_info, invoice_info, product_info = extract_info_based_on_class(names, ocr_results)
-
         # Display information in Streamlit sections
         st.header("Thông tin nhà cung cấp")
-        supplier_info["Tên nhà cung cấp"] = st.text_input("Tên nhà cung cấp", supplier_info["Tên nhà cung cấp"])
-        supplier_info["Địa chỉ nhà cung cấp"] = st.text_input("Địa chỉ nhà cung cấp", supplier_info["Địa chỉ nhà cung cấp"])
+        st.session_state.supplier_info["Tên nhà cung cấp"] = st.text_input("Tên nhà cung cấp", st.session_state.supplier_info["Tên nhà cung cấp"])
+        st.session_state.supplier_info["Địa chỉ nhà cung cấp"] = st.text_input("Địa chỉ nhà cung cấp", st.session_state.supplier_info["Địa chỉ nhà cung cấp"])
 
         st.header("Thông tin khách hàng")
-        customer_info["Người giao"] = st.text_input("Người giao", customer_info["Người giao"])
-        customer_info["Địa chỉ kho"] = st.text_input("Địa chỉ kho", customer_info["Địa chỉ kho"])
-        customer_info["Kho"] = st.text_input("Kho", customer_info["Kho"])
+        st.session_state.customer_info["Người giao"] = st.text_input("Người giao", st.session_state.customer_info["Người giao"])
+        st.session_state.customer_info["Địa chỉ kho"] = st.text_input("Địa chỉ kho", st.session_state.customer_info["Địa chỉ kho"])
+        st.session_state.customer_info["Kho"] = st.text_input("Kho", st.session_state.customer_info["Kho"])
 
         st.header("Thông tin hóa đơn")
-        invoice_info["Số hóa đơn"] = st.text_input("Số hóa đơn", invoice_info["Số hóa đơn"])
-        invoice_info["Ngày nhập kho"] = st.text_input("Ngày nhập kho", invoice_info["Ngày nhập kho"])
+        st.session_state.invoice_info["Số hóa đơn"] = st.text_input("Số hóa đơn", st.session_state.invoice_info["Số hóa đơn"])
+        st.session_state.invoice_info["Ngày nhập kho"] = st.text_input("Ngày nhập kho", st.session_state.invoice_info["Ngày nhập kho"])
 
         st.header("Bảng về sản phẩm")
 
-        # Remove unnecessary split() calls
-        product_info["Sản phẩm"] = [item.strip() for item in product_info["Sản phẩm"] if item.strip()]
-        product_info["Thực nhập"] = [item.strip() for item in product_info["Thực nhập"] if item.strip()]
-        product_info["Đơn giá"] = [item.strip() for item in product_info["Đơn giá"] if item.strip()]
-        product_info["Thành tiền"] = [item.strip() for item in product_info["Thành tiền"] if item.strip()]
-
-        # Pad lists with empty strings to make them of equal length
-        max_length = max(len(product_info[key]) for key in product_info)
-        for key in product_info:
-            product_info[key] += [""] * (max_length - len(product_info[key]))
-
         # Tính toán giá trị mới cho Thực nhập và Thành tiền
-        for i in range(len(product_info["Thực nhập"])):
-            if not product_info["Thực nhập"][i]:
+        for i in range(len(st.session_state.product_info["Thực nhập"])):
+            if not st.session_state.product_info["Thực nhập"][i]:
                 # Nếu Thành tiền không rỗng và Đơn giá không bằng 0, tính Thực nhập
-                if product_info["Thành tiền"][i] and float(product_info["Đơn giá"][i].replace(',', '').replace('.', '')) != 0:
+                if st.session_state.product_info["Thành tiền"][i] and float(st.session_state.product_info["Đơn giá"][i].replace(',', '').replace('.', '')) != 0:
                     try:
-                        calculated_thuc_nhap = float(product_info["Thành tiền"][i].replace(',', '').replace('.', '')) / float(product_info["Đơn giá"][i].replace(',', '').replace('.', ''))
-                        product_info["Thực nhập"][i] = int(calculated_thuc_nhap) if calculated_thuc_nhap.is_integer() else calculated_thuc_nhap
+                        calculated_thuc_nhap = float(st.session_state.product_info["Thành tiền"][i].replace(',', '').replace('.', '')) / float(st.session_state.product_info["Đơn giá"][i].replace(',', '').replace('.', ''))
+                        st.session_state.product_info["Thực nhập"][i] = int(calculated_thuc_nhap) if calculated_thuc_nhap.is_integer() else calculated_thuc_nhap
                     except ValueError:
-                        product_info["Thực nhập"][i] = ""
+                        st.session_state.product_info["Thực nhập"][i] = ""
 
-            if not product_info["Thành tiền"][i]:
+            if not st.session_state.product_info["Thành tiền"][i]:
                 # Nếu Thực nhập không rỗng và Đơn giá không bằng 0, tính Thành tiền
-                if product_info["Thực nhập"][i] and float(product_info["Đơn giá"][i].replace(',', '').replace('.', '')) != 0:
+                if st.session_state.product_info["Thực nhập"][i] and float(st.session_state.product_info["Đơn giá"][i].replace(',', '').replace('.', '')) != 0:
                     try:
-                        calculated_thanh_tien = float(product_info["Thực nhập"][i].replace(',', '').replace('.', '')) * float(product_info["Đơn giá"][i].replace(',', '').replace('.', ''))
-                        product_info["Thành tiền"][i] = int(calculated_thanh_tien) if calculated_thanh_tien.is_integer() else calculated_thanh_tien
+                        calculated_thanh_tien = float(st.session_state.product_info["Thực nhập"][i].replace(',', '').replace('.', '')) * float(st.session_state.product_info["Đơn giá"][i].replace(',', '').replace('.', ''))
+                        st.session_state.product_info["Thành tiền"][i] = int(calculated_thanh_tien) if calculated_thanh_tien.is_integer() else calculated_thanh_tien
                     except ValueError:
-                        product_info["Thành tiền"][i] = ""
+                        st.session_state.product_info["Thành tiền"][i] = ""
 
-        # Display the final DataFrame
-        df_products = pd.DataFrame(product_info)
+        df_supplier = pd.DataFrame(st.session_state.supplier_info.items())
+        df_customer = pd.DataFrame(st.session_state.customer_info.items())
+        df_invoice = pd.DataFrame(st.session_state.invoice_info.items())
+        df_products = pd.DataFrame(st.session_state.product_info)
         st.write(df_products)
-
+        
         # Display total money
-        total_money = sum([float(amount.replace(',', '').replace('.', '')) for amount in product_info["Thành tiền"] if amount])
+        total_money = sum([float(amount.replace(',', '').replace('.', '')) for amount in st.session_state.product_info["Thành tiền"] if amount])
         st.write(f"Tổng thành tiền: {total_money}")
 
-        if st.button("Save Changes"):
+        if st.button("Save"):
+            df_supplier.to_csv("extracted_information.csv", mode = "a", header=False)
+            df_customer.to_csv("extracted_information.csv", mode = "a", header=False)
+            df_invoice.to_csv("extracted_information.csv", mode = "a", header=False)
+            df_products.to_csv("extracted_information.csv", mode = "a", header=False)
             st.success("Changes saved successfully!")
 
     elif selected == 'Dashboard':
@@ -384,7 +387,6 @@ def main():
             # Check if the figure is not None before plotting
             if fig_chart is not None:
                 st.plotly_chart(fig_chart)
-
 
 # Run the application 
 if not st.session_state.logged_in:
