@@ -1,8 +1,6 @@
 import streamlit as st
 from streamlit_option_menu import option_menu
 from PIL import Image
-import chardet
-import plotly.express as px
 from ultralytics import YOLO
 import pandas as pd
 import easyocr
@@ -10,7 +8,7 @@ from vietocr.tool.predictor import Predictor
 from vietocr.tool.config import Cfg
 
 config = Cfg.load_config_from_name('vgg_transformer')
-config['cnn']['pretrained']=False
+config['cnn']['pretrained'] = False
 config['device'] = 'cpu'
 
 detector = Predictor(config)
@@ -26,6 +24,16 @@ model_path = 'Weight/best1.pt'
 # Initialize session state
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
+    st.session_state.data_boxes = {
+        "Tên nhà cung cấp": "",
+        "Địa chỉ nhà cung cấp": "",
+        "Người giao": "",
+        "Địa chỉ kho": "",
+        "Kho": "",
+        "Số hóa đơn": "",
+        "Ngày nhập kho": ""
+    }
+    st.session_state.detection_results = None
 
 # Function for login
 def login():
@@ -45,6 +53,7 @@ def login():
             st.error("Invalid username or password")
 
 # Function for loading the YOLO model
+@st.cache_data(allow_output_mutation=True)
 def load_yolo_model():
     try:
         model = YOLO(model_path)
@@ -53,7 +62,40 @@ def load_yolo_model():
         st.error(f"Unable to load model. Check the specified path: {model_path}")
         st.error(ex)
         return None
-    
+
+# Function for detecting objects and performing OCR
+@st.cache_data(allow_output_mutation=True)
+def detect_objects_and_ocr(img, model, confidence):
+    results = model.predict(img, conf=confidence)
+    names = results[0].names
+    boxes = results[0].boxes
+    classes = results[0].boxes.cls
+    print("Detected Classes:", classes)
+    print("Class Names:", names)
+
+    cropped_images = []
+    for bbox, cls in zip(boxes, classes):
+        bounding_box = tensor_to_numpy(bbox.xyxy)
+        x1, y1, x2, y2 = bounding_box[0]
+        # Crop the image to the bounding box, note that numpy uses y first
+        cropped_img = results[0].orig_img[int(y1):int(y2), int(x1):int(x2)]
+        cropped_images.append((cropped_img, cls))
+
+    ocr_results = []
+    for i in range(len(cropped_images)):
+        result = reader.readtext(cropped_images[i][0], add_margin=0.15)
+        for bound in result:
+            bbox = bound[0]
+            # Crop the image to the bounding box
+            x_min, y_min = [int(min(pt[0] for pt in bbox)), int(min(pt[1] for pt in bbox))]
+            x_max, y_max = [int(max(pt[0] for pt in bbox)), int(max(pt[1] for pt in bbox))]
+            cropped_image = Image.fromarray(cropped_images[i][0][y_min:y_max, x_min:x_max])
+            s = detector.predict(cropped_image)
+            ocr_results.append({names[int(cropped_images[i][1])]: s})
+
+    return names, ocr_results
+
+# Function for extracting information based on class names
 def extract_info_based_on_class(names, ocr_results):
     supplier_info = {"Tên nhà cung cấp": "", "Địa chỉ nhà cung cấp": ""}
     customer_info = {"Người giao": "", "Địa chỉ kho": "", "Kho": ""}
@@ -95,12 +137,12 @@ def extract_info_based_on_class(names, ocr_results):
 
 # Function for the main OCR Invoice Detection and Dashboard
 def main():
-    # OCR Invoice Detection and Dashboard 
+    # OCR Invoice Detection and Dashboard
     with st.sidebar:
         selected = option_menu("Home", ["Invoice Detection", 'Dashboard'],
                                icons=['body-text', 'bar-chart-line'], menu_icon="house", default_index=1)
 
-    names = []  
+    names = []
     ocr_results = []
 
     if selected == "Invoice Detection":
@@ -166,17 +208,17 @@ def main():
 
         # Display information in Streamlit sections
         st.header("Thông tin nhà cung cấp")
-        supplier_info["Tên nhà cung cấp"] = st.text_input("Tên nhà cung cấp", supplier_info["Tên nhà cung cấp"])
-        supplier_info["Địa chỉ nhà cung cấp"] = st.text_input("Địa chỉ nhà cung cấp", supplier_info["Địa chỉ nhà cung cấp"])
+        supplier_info["Tên nhà cung cấp"] = st.text_input("Tên nhà cung cấp", st.session_state.data_boxes["Tên nhà cung cấp"])
+        supplier_info["Địa chỉ nhà cung cấp"] = st.text_input("Địa chỉ nhà cung cấp", st.session_state.data_boxes["Địa chỉ nhà cung cấp"])
 
         st.header("Thông tin khách hàng")
-        customer_info["Người giao"] = st.text_input("Người giao", customer_info["Người giao"])
-        customer_info["Địa chỉ kho"] = st.text_input("Địa chỉ kho", customer_info["Địa chỉ kho"])
-        customer_info["Kho"] = st.text_input("Kho", customer_info["Kho"])
+        customer_info["Người giao"] = st.text_input("Người giao", st.session_state.data_boxes["Người giao"])
+        customer_info["Địa chỉ kho"] = st.text_input("Địa chỉ kho", st.session_state.data_boxes["Địa chỉ kho"])
+        customer_info["Kho"] = st.text_input("Kho", st.session_state.data_boxes["Kho"])
 
         st.header("Thông tin hóa đơn")
-        invoice_info["Số hóa đơn"] = st.text_input("Số hóa đơn", invoice_info["Số hóa đơn"])
-        invoice_info["Ngày nhập kho"] = st.text_input("Ngày nhập kho", invoice_info["Ngày nhập kho"])
+        invoice_info["Số hóa đơn"] = st.text_input("Số hóa đơn", st.session_state.data_boxes["Số hóa đơn"])
+        invoice_info["Ngày nhập kho"] = st.text_input("Ngày nhập kho", st.session_state.data_boxes["Ngày"])
 
         st.header("Bảng về sản phẩm")
 
@@ -190,6 +232,24 @@ def main():
         max_length = max(len(product_info[key]) for key in product_info)
         for key in product_info:
             product_info[key] += [""] * (max_length - len(product_info[key]))
+
+        class_values = {}
+
+        for result in ocr_results:
+            for name, text in result.items():
+                if name not in class_values:
+                    class_values[name] = []
+                class_values[name].append(text)
+
+        # Hiển thị thông tin
+        for name, values in class_values.items():
+            # Sử dụng st.text_area để hiển thị tất cả các giá trị trong một ô
+            product_info[name] = st.text_area(name, "\n".join(values))
+
+        # Đảm bảo chuyển đổi string values thành list 
+        for key in product_info:
+            if isinstance(product_info[key], str):
+                product_info[key] = [item.strip() for item in product_info[key].split("\n") if item.strip()]
 
         # Tính toán giá trị mới cho Thực nhập và Thành tiền
         for i in range(len(product_info["Thực nhập"])):
@@ -222,7 +282,7 @@ def main():
         if st.button("Save Changes"):
             st.success("Changes saved successfully!")
 
-# Run the application 
+# Run the application streamlit run test.py
 if not st.session_state.logged_in:
     login()
 else:

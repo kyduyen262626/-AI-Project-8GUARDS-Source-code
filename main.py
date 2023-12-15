@@ -238,7 +238,7 @@ def main():
         st.write("Sample Data:")
         st.write(df)
 
-        # Selectbox for choosing the type of statistic 
+        # Selectbox for choosing the type of statistic streamlit run main.py
         st.sidebar.subheader("Thống kê kho hàng")
         selected_stat = st.sidebar.selectbox(
             "Chọn loại thống kê",
