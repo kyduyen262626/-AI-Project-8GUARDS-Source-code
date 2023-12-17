@@ -101,13 +101,17 @@ def extract_info_based_on_class(names, ocr_results):
 
 # Function for the main OCR Invoice Detection and Dashboard
 def main():
+    st.session_state.supplier_info = {}
+    st.session_state.customer_info = {}
+    st.session_state.invoice_info = {}
+    st.session_state.product_info = {}
     # OCR Invoice Detection and Dashboard 
     with st.sidebar:
-        selected = option_menu("Home", ["Invoice Detection", 'Dashboard'],
+        selected = option_menu("Trang chủ", ["Trích xuất", 'Thống kê'],
                                icons=['body-text', 'bar-chart-line'], menu_icon="house", default_index=1)
 
-    if selected == "Invoice Detection":
-        st.title("📑OCR Invoice Detection")
+    if selected == "Trích xuất":
+        st.title("📑Trích xuất")
         uploaded_image = st.file_uploader("Upload an image", type=("jpg", "jpeg", "png", 'bmp', 'webp'), key="image")
 
         # Set up confidence
@@ -124,7 +128,7 @@ def main():
                 st.image(img, caption="Uploaded Image.", use_column_width=True)
 
                 # Lấy box -> model
-                if model and st.button("Detect Object"):
+                if model and st.button("Nhận diện hóa đơn"):
                     results = model.predict(img, conf=confidence)
                     names = results[0].names
                     boxes = results[0].boxes
@@ -167,7 +171,7 @@ def main():
             if uploaded_image and 'res_plotted' in locals():
                 st.image(res_plotted, caption='Detected Image', use_column_width=True)
                 try:
-                    with st.expander("Detection Results"):
+                    with st.expander("Kết quả nhận diện"):
                         st.write(ocr_results)
                 except Exception as ex:
                     st.write("No image is uploaded yet!")
@@ -189,23 +193,23 @@ def main():
         st.header("Bảng về sản phẩm")
 
         # Tính toán giá trị mới cho Thực nhập và Thành tiền
-        for i in range(len(st.session_state.product_info["Thực nhập"])):
-            if not st.session_state.product_info["Thực nhập"][i]:
+        for i in range(len(st.session_state.product_info.get("Thực nhập", []))):
+            if not st.session_state.product_info.get("Thực nhập", [])[i]:
                 # Nếu Thành tiền không rỗng và Đơn giá không bằng 0, tính Thực nhập
-                if st.session_state.product_info["Thành tiền"][i] and float(st.session_state.product_info["Đơn giá"][i].replace(',', '').replace('.', '')) != 0:
+                if st.session_state.product_info.get("Thành tiền", [])[i] and float(st.session_state.product_info.get("Đơn giá", [])[i].replace(',', '').replace('.', '')) != 0:
                     try:
-                        calculated_thuc_nhap = float(st.session_state.product_info["Thành tiền"][i].replace(',', '').replace('.', '')) / float(st.session_state.product_info["Đơn giá"][i].replace(',', '').replace('.', ''))
-                        st.session_state.product_info["Thực nhập"][i] = int(calculated_thuc_nhap) if calculated_thuc_nhap.is_integer() else calculated_thuc_nhap
+                        calculated_thuc_nhap = float(st.session_state.product_info.get("Thành tiền", [])[i].replace(',', '').replace('.', '')) / float(st.session_state.product_info.get("Đơn giá", [])[i].replace(',', '').replace('.', ''))
+                        st.session_state.product_info.get("Thực nhập", [])[i] = int(calculated_thuc_nhap) if calculated_thuc_nhap.is_integer() else calculated_thuc_nhap
                     except ValueError:
-                        st.session_state.product_info["Thực nhập"][i] = ""
+                        st.session_state.product_info.get("Thực nhập", [])[i] = ""
 
-            if not st.session_state.product_info["Thành tiền"][i]:
-                if st.session_state.product_info["Thực nhập"][i] and float(st.session_state.product_info["Đơn giá"][i].replace(',', '').replace('.', '')) != 0:
+            if not st.session_state.product_info.get("Thành tiền", [])[i]:
+                if st.session_state.product_info.get("Thực nhập", [])[i] and float(st.session_state.product_info.get("Đơn giá", [])[i].replace(',', '').replace('.', '')) != 0:
                     try:
-                        calculated_thanh_tien = float(st.session_state.product_info["Thực nhập"][i].replace(',', '').replace('.', '')) * float(st.session_state.product_info["Đơn giá"][i].replace(',', '').replace('.', ''))
-                        st.session_state.product_info["Thành tiền"][i] = int(calculated_thanh_tien) if calculated_thanh_tien.is_integer() else calculated_thanh_tien
+                        calculated_thanh_tien = float(st.session_state.product_info.get("Thực nhập", [])[i].replace(',', '').replace('.', '')) * float(st.session_state.product_info.get("Đơn giá", [])[i].replace(',', '').replace('.', ''))
+                        st.session_state.product_info.get("Thành tiền", [])[i] = int(calculated_thanh_tien) if calculated_thanh_tien.is_integer() else calculated_thanh_tien
                     except ValueError:
-                        st.session_state.product_info["Thành tiền"][i] = ""
+                        st.session_state.product_info.get("Thành tiền", [])[i] = ""
 
         df_supplier = pd.DataFrame(st.session_state.supplier_info.items())
         df_customer = pd.DataFrame(st.session_state.customer_info.items())
@@ -214,180 +218,171 @@ def main():
         st.write(df_products)
         
         # Display total money 
-        total_money = sum([float(amount.replace(',', '').replace('.', '')) for amount in st.session_state.product_info["Thành tiền"] if amount])
+        total_money = sum([float(amount.replace(',', '').replace('.', '')) for amount in st.session_state.product_info.get("Thành tiền", []) if amount])
         st.write(f"Tổng thành tiền: {total_money}")
 
-        if st.button("Save"):
+        if st.button("Lưu thông tin"):
             df_supplier.to_csv("extracted_information.csv", mode = "a", header=False)
             df_customer.to_csv("extracted_information.csv", mode = "a", header=False)
             df_invoice.to_csv("extracted_information.csv", mode = "a", header=False)
             df_products.to_csv("extracted_information.csv", mode = "a", header=False)
-            st.success("Changes saved successfully!")
+            st.success("Lưu thành công")
 
-    elif selected == 'Dashboard':
-        st.title("📊Dashboard")
+    elif selected == 'Thống kê':
+        st.title("📊 Thống kê")
 
-        # Detect file encoding
+        # Phát hiện mã hóa tệp
         with open("2023-11-22T07-16_export.csv", 'rb') as f:
             result = chardet.detect(f.read())
-        
+
         encoding = result['encoding']
-        
-        # Read CSV with detected encoding
+
+        # Đọc CSV với mã hóa đã phát hiện
         df = pd.read_csv("2023-11-22T07-16_export.csv", encoding=encoding)
 
-        # Display the loaded data
-        st.write("Sample Data:")
+        # Hiển thị dữ liệu đã tải
+        st.write("Dữ liệu Mẫu:")
         st.write(df)
 
-        # Selectbox for choosing the type of statistic streamlit run main.py
+        # Dropdown để chọn loại thống kê
         st.sidebar.subheader("Thống kê kho hàng")
         selected_stat = st.sidebar.selectbox(
             "Chọn loại thống kê",
-            ["Hàng tồn kho theo sản phẩm", "Hàng nhập kho theo thời gian"],
+            ["Hàng nhập theo sản phẩm", "Hàng nhập kho theo thời gian"],
         )
 
-        # Chart based on the selected statistic 
-        st.subheader("Biểu đồ thống kê")
-
-        if selected_stat == "Hàng tồn kho theo sản phẩm":
-            # Additional options for choosing the time interval
+        if selected_stat == "Hàng nhập theo sản phẩm":
+            # Tùy chọn thêm để chọn khoảng thời gian
             product_options = df['Product_name'].unique().tolist()
-            product_options.insert(0, "Tất cả sản phẩm")  # Add the option "Tất cả sản phẩm" to the beginning of the list
-            selected_products = st.sidebar.multiselect("Chọn sản phẩm", product_options)
+            product_options.insert(0, "Tất cả sản phẩm")  # Thêm tùy chọn "Tất cả sản phẩm" vào đầu danh sách
+            selected_products = st.sidebar.multiselect("Chọn Sản phẩm", product_options)
 
-            # Filter DataFrame based on the selected products
+            # Lọc DataFrame dựa trên các sản phẩm đã chọn
             if "Tất cả sản phẩm" in selected_products:
-                df_filtered = df  # Show data for all products
+                df_filtered = df  # Hiển thị dữ liệu cho tất cả sản phẩm
             else:
                 df_filtered = df[df['Product_name'].isin(selected_products)]
 
-            chart_type_options = ["Bar Chart", "Pie Chart"]
-            selected_chart_type = st.sidebar.radio("Chọn loại biểu đồ", chart_type_options)
+            chart_type_options = ["Sản phẩm vs Số lượng", "Giá vs Sản phẩm", "Giá, Số lượng vs Sản phẩm",
+                                "Biểu đồ tròn Sản phẩm"]
+            selected_chart_type = st.sidebar.radio("Chọn Loại Biểu Đồ", chart_type_options)
 
-            # Initialize the figure
+            # Khởi tạo biểu đồ
             fig_chart = None
 
-            # Chart based on the selected chart type
-            st.subheader(f"Biểu đồ thống kê cho {', '.join(selected_products) if selected_products else 'Tất cả sản phẩm'}")
+            if selected_chart_type == "Biểu đồ thống kê Sản phẩm và Số lượng":
+                df_amount = df_filtered.groupby('Product_name')['Amount'].sum().reset_index()
+                fig_chart = px.bar(df_amount, x='Product_name', y='Amount', title='Sản phẩm vs Số lượng',
+                                color_discrete_sequence=px.colors.qualitative.Pastel)
+                # Hiển thị giá trị con số lên đỉnh của mỗi cột
+                fig_chart.update_traces(text=df_amount['Amount'], textposition='outside')
+            elif selected_chart_type == "Biểu đồ thống kê Giá và Sản phẩm":
+                df_price = df_filtered.groupby('Product_name')['Price'].sum().reset_index()
+                fig_chart = px.bar(df_price, x='Product_name', y='Price', title='Giá vs Sản phẩm',
+                                color_discrete_sequence=px.colors.qualitative.Pastel)
+                # Hiển thị giá trị con số lên đỉnh của mỗi cột
+                fig_chart.update_traces(text=df_price['Price'], textposition='outside')
+            elif selected_chart_type == "Biểu đồ thống kê Giá, Số lượng và Sản phẩm":
+                df_summary = df_filtered.groupby('Product_name').agg({'Amount': 'sum', 'Price': 'sum'}).reset_index()
+                df_new = pd.melt(df_summary, id_vars=["Product_name"], value_vars=["Amount", "Price"],
+                                var_name='Metric', value_name='Value')
+                fig_chart = px.bar(df_new, x="Product_name", y="Value", title="Giá, Số lượng vs Sản phẩm",
+                                color="Metric", barmode='group',
+                                color_discrete_sequence=px.colors.qualitative.Pastel)
+                # Hiển thị giá trị con số lên đỉnh của mỗi cột
+                fig_chart.update_traces(text=df_new['Value'], textposition='outside')
 
-            if selected_chart_type == "Bar Chart":
-                fig_chart = px.bar(df_filtered, x="Product_name", y="Amount", title="Bar Chart")
+            elif selected_chart_type == "Biểu đồ tròn Sản phẩm":
+                df_product_amount = df_filtered.groupby('Product_name')['Amount'].sum().reset_index()
+                fig_chart = px.pie(df_product_amount, values='Amount', names='Product_name',
+                                title='Sản phẩm vs Số lượng (Biểu đồ tròn)',
+                                color_discrete_sequence=px.colors.qualitative.Pastel)
 
-            elif selected_chart_type == "Pie Chart":
-                fig_chart = px.pie(df_filtered, values="Amount", names="Product_name", title="Pie Chart")
-
-            # Check if the figure is not None before plotting
+            # Kiểm tra xem biểu đồ có giá trị không trước khi vẽ
             if fig_chart is not None:
                 st.plotly_chart(fig_chart)
 
         elif selected_stat == "Hàng nhập kho theo thời gian":
-            # Additional options for choosing the time interval
-            time_interval_options = ["Ngày", "Tháng", "Quý", "Năm"]
-            selected_time_interval = st.sidebar.selectbox("Chọn khoảng thời gian", time_interval_options)
+            df_filtered = pd.DataFrame()
 
-            # Check if the column representing date is present in the DataFrame
+            # Tùy chọn thêm để chọn khoảng thời gian
+            time_interval_options = ["Tháng", "Quý", "Năm"]  # Loại bỏ "Ngày" khỏi danh sách
+            selected_time_interval = st.sidebar.selectbox("Chọn Khoảng Thời Gian", time_interval_options)
+
+            # Kiểm tra xem cột đại diện cho ngày có trong DataFrame không
             if 'Date' not in df.columns:
-                st.error("The date column is not present in the DataFrame.")
-                return
-            # Parse the date column as datetime with the correct format 
-            df['Date'] = pd.to_datetime(df['Date'], format='%d/%m/%Y')
+                st.error("Thời gian không có trong DataFrame.")
+            else:
+                df['Date'] = pd.to_datetime(df['Date'], format='%d/%m/%Y')
 
-            # Initialize the figure
-            fig_chart = None
+                # Lọc dữ liệu dựa trên khoảng thời gian đã chọn
+                if selected_time_interval == "Tháng":
+                    selected_month = st.sidebar.select_slider("Chọn Tháng", options=range(1, 13), value=1)
+                    selected_year = st.sidebar.selectbox("Chọn Năm", options=df['Date'].dt.year.unique(), index=0)
+                    df_filtered = df[(df['Date'].dt.month == selected_month) & (df['Date'].dt.year == selected_year)]
+                    title = f"Hàng nhập trong Tháng {selected_month} năm {selected_year}"
 
-            # Additional options for choosing the chart type
-            chart_type_options = ["Bar Chart", "Pie Chart", "Line Chart"]
-            selected_chart_type = st.sidebar.radio("Chọn loại biểu đồ", chart_type_options)
+                elif selected_time_interval == "Quý":
+                    selected_quarter = st.sidebar.select_slider("Chọn Quý", options=range(1, 5), value=1)
+                    selected_year = st.sidebar.selectbox("Chọn Năm", options=df['Date'].dt.year.unique(), index=0)
+                    df_filtered = df[(df['Date'].dt.quarter == selected_quarter) & (df['Date'].dt.year == selected_year)]
+                    title = f"Hàng nhập trong Quý {selected_quarter} năm {selected_year}"
 
-            if selected_time_interval == "Ngày":
-                # Chọn ngày từ người dùng
-                selected_date = st.sidebar.date_input(
-                    "Chọn ngày", 
-                    min_value=df['Date'].min(), 
-                    max_value=df['Date'].max(), 
-                    value=df['Date'].min(),
-                )
-                # Lọc DataFrame theo ngày đã chọn
-                df_filtered = df[df['Date'] == selected_date]
-                # Tạo tiêu đề
-                title = f"Hàng nhập vào ngày {selected_date.strftime('%d/%m/%Y')}"
-
-            elif selected_time_interval == "Tháng":
-                selected_month = st.sidebar.select_slider("Chọn tháng", options=range(1, 13), value=1)
-
-                # Lấy tất cả các năm unique từ cột 'Date' trong DataFrame
-                available_years = df['Date'].dt.year.unique()
-                
-                # Chọn năm từ user
-                selected_year = st.sidebar.selectbox("Chọn năm", options=available_years, index=0)
-
-                df_filtered = df[(df['Date'].dt.month == selected_month) & (df['Date'].dt.year == selected_year)]
-                title = f"Hàng nhập vào tháng {selected_month} năm {selected_year}"
-
-            elif selected_time_interval == "Quý":
-                selected_quarter = st.sidebar.select_slider("Chọn quý", options=range(1, 5), value=1)
-
-                # Lấy tất cả các năm unique từ cột 'Date' trong DataFrame
-                available_years = df['Date'].dt.year.unique()
-                    
-                # Chọn năm
-                selected_year = st.sidebar.selectbox("Chọn năm", options=available_years, index=0)
-
-                df_filtered = df[(df['Date'].dt.quarter == selected_quarter) & (df['Date'].dt.year == selected_year)]
-                title = f"Hàng nhập vào quý {selected_quarter} năm {selected_year}"
-
-            elif selected_time_interval == "Năm":
-                # Lấy tất cả các năm unique từ cột 'Date' trong DataFrame
-                available_years = df['Date'].dt.year.unique()
-
-                # Chọn năm
-                selected_year = st.sidebar.selectbox("Chọn năm", options=available_years, index=0)
-
-                df_filtered = df[df['Date'].dt.year == selected_year]
-                title = f"Hàng nhập vào năm {selected_year}"
-
-            # Additional options for choosing the products
-            product_options = ["Tất cả sản phẩm"] + df['Product_name'].unique().tolist()
-            selected_products = st.sidebar.multiselect("Chọn sản phẩm", product_options)
-
-            # Filter DataFrame based on the selected products
-            if "Tất cả sản phẩm" not in selected_products:
-                if selected_products:
-                    df_filtered = df_filtered[df_filtered['Product_name'].isin(selected_products)]
+                elif selected_time_interval == "Năm":
+                    selected_year = st.sidebar.selectbox("Chọn Năm", options=df['Date'].dt.year.unique(), index=0)
+                    df_filtered = df[df['Date'].dt.year == selected_year]
+                    title = f"Hàng nhập trong Năm {selected_year}"
                 else:
-                    st.warning("Chọn ít nhất một sản phẩm.")
+                    title = f"Hàng nhập theo thời gian"
 
-            # Display the data
-            st.write(f"*{title}*")
-            st.write(df_filtered)
+                # Phần mã cho việc chọn loại biểu đồ (Biểu đồ Cột, Biểu đồ Tròn, Biểu đồ Đường) sẽ được thêm ở đây...
 
-            # Chart based on the selected chart type 
-            st.subheader(f"Biểu đồ thống kê cho {title}")
+                # Tùy chọn thêm để chọn sản phẩm
+                product_options = ["Tất cả sản phẩm"] + df['Product_name'].unique().tolist()
+                selected_products = st.sidebar.multiselect("Chọn Sản phẩm", product_options)
 
-            if selected_chart_type == "Bar Chart":
-                fig_chart = px.bar(df_filtered, x="Product_name", y=["Amount", "Price"], title="Bar Chart",
-                                color_discrete_map={"Amount": "blue", "Price": "orange"},
-                                barmode='group')
+                # Lọc DataFrame dựa trên các sản phẩm đã chọn
+                if "Tất cả sản phẩm" not in selected_products:
+                    if selected_products:
+                        df_filtered = df_filtered[df_filtered['Product_name'].isin(selected_products)]
+                    else:
+                        st.warning("Chọn ít nhất một sản phẩm.")
 
-            elif selected_chart_type == "Pie Chart":
-                # Tạo hai biểu đồ tròn, một cho Amount và một cho Price
-                fig_amount = px.pie(df_filtered, values="Amount", names="Product_name", title="Pie Chart - Amount")
-                fig_price = px.pie(df_filtered, values="Price", names="Product_name", title="Pie Chart - Price")
+                # Hiển thị dữ liệu đã lọc
+                st.write(f"{title}")
+                st.write(df_filtered)
 
-                # Hiển thị hai biểu đồ tròn
-                st.plotly_chart(fig_amount)
-                st.plotly_chart(fig_price)
+                # Biểu đồ dựa trên loại biểu đồ đã chọn
+                st.subheader(f"Biểu đồ thống kê cho {title}")
+                selected_chart_type = st.sidebar.selectbox("Chọn Loại Biểu Đồ",
+                                                        ["Biểu Đồ Cột - Sản phẩm vs Số lượng",
+                                                            "Biểu Đồ Cột - Giá vs Sản phẩm",
+                                                            "Biểu Đồ Cột - Giá, Số lượng vs Sản phẩm",
+                                                            "Biểu Đồ Kết Hợp - Giá, Số lượng vs Sản phẩm"])
 
-            elif selected_chart_type == "Line Chart":
-                fig_chart = px.line(df_filtered, x="Product_name", y=["Amount", "Price"], title="Line Chart",
-                                    color_discrete_map={"Amount": "blue", "Price": "orange"})
+                if selected_chart_type == "Biểu Đồ Cột - Sản phẩm vs Số lượng":
+                    fig_chart = px.bar(df_filtered, x="Product_name", y="Amount", title="Biểu Đồ Cột - Sản phẩm vs Số lượng",
+                                    color_discrete_sequence=px.colors.qualitative.Pastel)
+                    st.plotly_chart(fig_chart)
 
-            # Check if the figure is not None before plotting
-            if fig_chart is not None:
-                st.plotly_chart(fig_chart)
+                elif selected_chart_type == "Biểu Đồ Cột - Giá vs Sản phẩm":
+                    fig_chart = px.bar(df_filtered, x="Product_name", y="Price", title="Biểu Đồ Cột - Giá vs Sản phẩm",
+                                    color_discrete_sequence=px.colors.qualitative.Pastel)
+                    st.plotly_chart(fig_chart)
 
-# Run the application 
+                elif selected_chart_type == "Biểu Đồ Cột - Giá, Số lượng vs Sản phẩm":
+                    fig_chart = px.bar(df_filtered, x="Product_name", y=["Amount", "Price"],
+                                    title="Biểu Đồ Cột - Giá, Số lượng vs Sản phẩm", barmode='group',
+                                    color_discrete_sequence=px.colors.qualitative.Pastel)
+                    st.plotly_chart(fig_chart)
+
+                elif selected_chart_type == "Biểu Đồ Kết Hợp - Giá, Số lượng vs Sản phẩm":
+                    fig_chart = px.bar(df_filtered, x="Product_name", y=["Amount", "Price"],
+                                    title="Biểu Đồ Kết Hợp - Giá, Số lượng vs Sản phẩm", barmode='group',
+                                    color_discrete_sequence=px.colors.qualitative.Pastel)
+                    st.plotly_chart(fig_chart)
+
+# Chạy ứng dụng
 if not st.session_state.logged_in:
     login()
 else:
