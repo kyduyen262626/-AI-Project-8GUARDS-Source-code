@@ -29,7 +29,7 @@ if 'logged_in' not in st.session_state:
 
 # Function for login
 def login():
-    st.title("8GUARDS - OCR Invoice Detection - Login")
+    st.title("OCR Invoice Detection - Đăng nhập")
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
     login_button = st.button("Login")
@@ -174,17 +174,17 @@ def main():
 
         # Display information in Streamlit sections
         st.header("Thông tin nhà cung cấp")
-        st.session_state.supplier_info["Tên nhà cung cấp"] = st.text_input("Tên nhà cung cấp", st.session_state.supplier_info["Tên nhà cung cấp"])
-        st.session_state.supplier_info["Địa chỉ nhà cung cấp"] = st.text_input("Địa chỉ nhà cung cấp", st.session_state.supplier_info["Địa chỉ nhà cung cấp"])
+        st.session_state.supplier_info["Tên nhà cung cấp"] = st.text_input("Tên nhà cung cấp", st.session_state.supplier_info.get("Tên nhà cung cấp", ""))
+        st.session_state.supplier_info["Địa chỉ nhà cung cấp"] = st.text_input("Địa chỉ nhà cung cấp", st.session_state.supplier_info.get("Địa chỉ nhà cung cấp", ""))
 
         st.header("Thông tin khách hàng")
-        st.session_state.customer_info["Người giao"] = st.text_input("Người giao", st.session_state.customer_info["Người giao"])
-        st.session_state.customer_info["Địa chỉ kho"] = st.text_input("Địa chỉ kho", st.session_state.customer_info["Địa chỉ kho"])
-        st.session_state.customer_info["Kho"] = st.text_input("Kho", st.session_state.customer_info["Kho"])
+        st.session_state.customer_info["Người giao"] = st.text_input("Người giao", st.session_state.customer_info.get("Người giao", ""))
+        st.session_state.customer_info["Địa chỉ kho"] = st.text_input("Địa chỉ kho", st.session_state.customer_info.get("Địa chỉ kho", ""))
+        st.session_state.customer_info["Kho"] = st.text_input("Kho", st.session_state.customer_info.get("Kho", ""))
 
         st.header("Thông tin hóa đơn")
-        st.session_state.invoice_info["Số hóa đơn"] = st.text_input("Số hóa đơn", st.session_state.invoice_info["Số hóa đơn"])
-        st.session_state.invoice_info["Ngày nhập kho"] = st.text_input("Ngày nhập kho", st.session_state.invoice_info["Ngày nhập kho"])
+        st.session_state.invoice_info["Số hóa đơn"] = st.text_input("Số hóa đơn", st.session_state.invoice_info.get("Số hóa đơn", ""))
+        st.session_state.invoice_info["Ngày nhập kho"] = st.text_input("Ngày nhập kho", st.session_state.invoice_info.get("Ngày nhập kho", ""))
 
         st.header("Bảng về sản phẩm")
 
@@ -200,7 +200,6 @@ def main():
                         st.session_state.product_info["Thực nhập"][i] = ""
 
             if not st.session_state.product_info["Thành tiền"][i]:
-                # Nếu Thực nhập không rỗng và Đơn giá không bằng 0, tính Thành tiền
                 if st.session_state.product_info["Thực nhập"][i] and float(st.session_state.product_info["Đơn giá"][i].replace(',', '').replace('.', '')) != 0:
                     try:
                         calculated_thanh_tien = float(st.session_state.product_info["Thực nhập"][i].replace(',', '').replace('.', '')) * float(st.session_state.product_info["Đơn giá"][i].replace(',', '').replace('.', ''))
@@ -214,7 +213,7 @@ def main():
         df_products = pd.DataFrame(st.session_state.product_info)
         st.write(df_products)
         
-        # Display total money
+        # Display total money 
         total_money = sum([float(amount.replace(',', '').replace('.', '')) for amount in st.session_state.product_info["Thành tiền"] if amount])
         st.write(f"Tổng thành tiền: {total_money}")
 
@@ -393,4 +392,3 @@ if not st.session_state.logged_in:
     login()
 else:
     main()
-
