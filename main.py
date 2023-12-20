@@ -192,7 +192,6 @@ def main():
 
         st.header("Bảng về sản phẩm")
 
-        # Tính toán giá trị mới cho Thực nhập và Thành tiền
         for i in range(len(st.session_state.product_info.get("Thực nhập", []))):
             if not st.session_state.product_info.get("Thực nhập", [])[i]:
                 # Nếu Thành tiền không rỗng và Đơn giá không bằng 0, tính Thực nhập
@@ -256,6 +255,7 @@ def main():
             product_options = df['Product_name'].unique().tolist()
             product_options.insert(0, "Tất cả sản phẩm")  # Thêm tùy chọn "Tất cả sản phẩm" vào đầu danh sách
             selected_products = st.sidebar.multiselect("Chọn Sản phẩm", product_options)
+            selected_chart_type = "Biểu đồ tròn Sản phẩm"  # Sửa lại thành chuỗi
 
             # Lọc DataFrame dựa trên các sản phẩm đã chọn
             if "Tất cả sản phẩm" in selected_products:
@@ -263,49 +263,23 @@ def main():
             else:
                 df_filtered = df[df['Product_name'].isin(selected_products)]
 
-            chart_type_options = ["Sản phẩm vs Số lượng", "Giá vs Sản phẩm", "Giá, Số lượng vs Sản phẩm",
-                                "Biểu đồ tròn Sản phẩm"]
-            selected_chart_type = st.sidebar.radio("Chọn Loại Biểu Đồ", chart_type_options)
-
             # Khởi tạo biểu đồ
             fig_chart = None
 
-            if selected_chart_type == "Biểu đồ thống kê Sản phẩm và Số lượng":
-                df_amount = df_filtered.groupby('Product_name')['Amount'].sum().reset_index()
-                fig_chart = px.bar(df_amount, x='Product_name', y='Amount', title='Sản phẩm vs Số lượng',
-                                color_discrete_sequence=px.colors.qualitative.Pastel)
-                # Hiển thị giá trị con số lên đỉnh của mỗi cột
-                fig_chart.update_traces(text=df_amount['Amount'], textposition='outside')
-            elif selected_chart_type == "Biểu đồ thống kê Giá và Sản phẩm":
-                df_price = df_filtered.groupby('Product_name')['Price'].sum().reset_index()
-                fig_chart = px.bar(df_price, x='Product_name', y='Price', title='Giá vs Sản phẩm',
-                                color_discrete_sequence=px.colors.qualitative.Pastel)
-                # Hiển thị giá trị con số lên đỉnh của mỗi cột
-                fig_chart.update_traces(text=df_price['Price'], textposition='outside')
-            elif selected_chart_type == "Biểu đồ thống kê Giá, Số lượng và Sản phẩm":
-                df_summary = df_filtered.groupby('Product_name').agg({'Amount': 'sum', 'Price': 'sum'}).reset_index()
-                df_new = pd.melt(df_summary, id_vars=["Product_name"], value_vars=["Amount", "Price"],
-                                var_name='Metric', value_name='Value')
-                fig_chart = px.bar(df_new, x="Product_name", y="Value", title="Giá, Số lượng vs Sản phẩm",
-                                color="Metric", barmode='group',
-                                color_discrete_sequence=px.colors.qualitative.Pastel)
-                # Hiển thị giá trị con số lên đỉnh của mỗi cột
-                fig_chart.update_traces(text=df_new['Value'], textposition='outside')
-
-            elif selected_chart_type == "Biểu đồ tròn Sản phẩm":
+            if selected_chart_type == "Biểu đồ tròn Sản phẩm":
                 df_product_amount = df_filtered.groupby('Product_name')['Amount'].sum().reset_index()
                 fig_chart = px.pie(df_product_amount, values='Amount', names='Product_name',
                                 title='Sản phẩm vs Số lượng (Biểu đồ tròn)',
                                 color_discrete_sequence=px.colors.qualitative.Pastel)
 
-            # Kiểm tra xem biểu đồ có giá trị không trước khi vẽ
+            # Kiểm tra xem biểu đồ có giá trị không trước khi vẽ 
             if fig_chart is not None:
                 st.plotly_chart(fig_chart)
 
         elif selected_stat == "Hàng nhập kho theo thời gian":
             df_filtered = pd.DataFrame()
 
-            # Tùy chọn thêm để chọn khoảng thời gian
+            # Tùy chọn thêm để chọn khoảng thời gian 
             time_interval_options = ["Tháng", "Quý", "Năm"]  # Loại bỏ "Ngày" khỏi danh sách
             selected_time_interval = st.sidebar.selectbox("Chọn Khoảng Thời Gian", time_interval_options)
 
@@ -334,8 +308,6 @@ def main():
                     title = f"Hàng nhập trong Năm {selected_year}"
                 else:
                     title = f"Hàng nhập theo thời gian"
-
-                # Phần mã cho việc chọn loại biểu đồ (Biểu đồ Cột, Biểu đồ Tròn, Biểu đồ Đường) sẽ được thêm ở đây...
 
                 # Tùy chọn thêm để chọn sản phẩm
                 product_options = ["Tất cả sản phẩm"] + df['Product_name'].unique().tolist()
@@ -382,7 +354,7 @@ def main():
                                     color_discrete_sequence=px.colors.qualitative.Pastel)
                     st.plotly_chart(fig_chart)
 
-# Chạy ứng dụng
+# Chạy ứng dụng 
 if not st.session_state.logged_in:
     login()
 else:
